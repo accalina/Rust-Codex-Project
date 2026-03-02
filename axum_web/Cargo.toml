@@ -1,0 +1,15 @@
+[package]
+name = "rustpup_web"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.8"
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.49.0", features = ["full"] }
+
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Link Time Optimization (huge performance/size boost)
+codegen-units = 1   # Allows for better optimizations
+panic = 'abort'     # Reduces binary size by removing stack unwinding
