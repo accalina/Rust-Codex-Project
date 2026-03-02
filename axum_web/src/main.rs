@@ -1,38 +1,36 @@
 use axum::{
-    extract::Path,
     routing::get,
     Router,
-    Json,
+    extract::Extension,
 };
-use serde::Serialize;
+use std::sync::Arc;
 
-#[derive(Serialize)]
-struct UserResponse {
-    message: String,
-    success: bool,
-}
+mod domain;
+mod database;
+mod repository;
+mod service;
+mod api;
 
 #[tokio::main]
 async fn main() {
+    // Initialize database
+    let db = database::Database::new().expect("Failed to initialize database");
+    
+    // Create repository
+    let repository = repository::sqlite_repository::SqliteGreetingRepository::new(db);
+    
+    // Create our service implementation
+    let service: Arc<dyn domain::GreetingService + Send + Sync> = 
+        Arc::new(service::GreetingServiceImpl::new(repository));
+    
+    // Build our application with the service in its state
     let app = Router::new()
-        .route("/", get(hello_world))
-        .route("/hello/{name}", get(hello_name));
+        .route("/", get(api::hello_world_handler))
+        .route("/hello/{name}", get(api::hello_name_handler))
+        .route("/history", get(api::history_handler))
+        .layer(Extension(service));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8008").await.unwrap();
     println!("Listening on http://127.0.0.1:8008");
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn hello_world() -> Json<UserResponse> {
-    Json (UserResponse {
-        message: "Hello, world!".to_string(),
-        success: true,
-    })
-}
-
-async fn hello_name(Path(name): Path<String>) -> Json<UserResponse> {
-    Json (UserResponse {
-        message: format!("Hello, {}!", name).to_string(),
-        success: true,
-    })
 }
